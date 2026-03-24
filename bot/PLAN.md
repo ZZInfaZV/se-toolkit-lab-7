@@ -77,20 +77,68 @@ The bot follows a layered architecture:
 
 **Goal:** Let users ask questions in plain language (e.g., "what labs are available?").
 
-**Approach:**
-- Create `bot/services/llm_client.py` — client for the Qwen Code API
-- Define tool descriptions for each backend action (get_health, get_labs, get_scores, etc.)
-- Build an intent router that:
-  1. Sends user message + tool descriptions to LLM
-  2. LLM returns which tool to call with arguments
-  3. Bot executes the tool and returns the result
-- The key insight: the LLM reads tool descriptions to decide what to call. Description quality matters more than prompt engineering.
+**Implementation:**
 
-**Tool descriptions example:**
+### Files created
+
+- `bot/services/llm_client.py` — LLM client with tool calling support
+- `bot/services/lms_client.py` — extended with 9 methods for all backend endpoints
+- `bot/handlers/intent_router.py` — plain text intent router using LLM
+- `bot/handlers/keyboard.py` — inline keyboard button builder
+
+### Tool definitions (9 backend endpoints)
+
+| Tool | Endpoint | Description |
+|------|----------|-------------|
+| `get_items` | `GET /items/` | List of labs and tasks |
+| `get_learners` | `GET /learners/` | Enrolled students and groups |
+| `get_scores` | `GET /analytics/scores?lab=` | Score distribution (4 buckets) |
+| `get_pass_rates` | `GET /analytics/pass-rates?lab=` | Per-task averages and attempt counts |
+| `get_timeline` | `GET /analytics/timeline?lab=` | Submissions per day |
+| `get_groups` | `GET /analytics/groups?lab=` | Per-group scores and student counts |
+| `get_top_learners` | `GET /analytics/top-learners?lab=&limit=` | Top N learners by score |
+| `get_completion_rate` | `GET /analytics/completion-rate?lab=` | Completion rate percentage |
+| `trigger_sync` | `POST /pipeline/sync` | Refresh data from autochecker |
+
+### How it works
+
 ```
-get_labs: List all available labs. No arguments needed.
-get_scores: Get pass rates for a specific lab. Argument: lab_name (e.g., "lab-04")
+User: "which lab has the worst results?"
+  → bot sends message + tool definitions to LLM
+  → LLM decides: call get_pass_rates for each lab
+  → bot executes the API calls
+  → feeds results back to LLM
+  → LLM summarizes
+  → bot sends response
 ```
+
+### Key patterns
+
+1. **Tool calling loop**: The LLM returns tool calls, the bot executes them, feeds results back, and the LLM produces the final answer.
+
+2. **Debug logging**: Tool calls and results are printed to stderr so they're visible in `--test` mode (which only shows the final response on stdout).
+
+3. **Fallback handling**: Greetings and gibberish are detected without the LLM. LLM errors produce helpful messages instead of crashes.
+
+4. **Inline keyboards**: The `/start` command shows buttons for common actions (labs, health, scores, top learners, pass rates, groups).
+
+### Testing
+
+```terminal
+# Single-step queries
+uv run bot.py --test "what labs are available"
+uv run bot.py --test "show me scores for lab 4"
+
+# Multi-step queries (LLM chains multiple API calls)
+uv run bot.py --test "which lab has the lowest pass rate"
+uv run bot.py --test "which group is best in lab 3"
+
+# Fallback cases
+uv run bot.py --test "hello"       # greeting
+uv run bot.py --test "asdfgh"      # gibberish
+```
+
+**Key insight:** The LLM reads tool descriptions to decide what to call. Description quality matters more than prompt engineering.
 
 ## Task 4: Containerize and Document
 
