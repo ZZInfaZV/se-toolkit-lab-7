@@ -80,11 +80,11 @@ def handle_labs(command: str) -> str:
         try:
             result = await client.get_labs()
             if "error" in result:
-                return f"Backend error: {result['error']}. Check that the services are running."
+                return f"❌ Backend error: {result['error']}. Check that the services are running."
             labs = result["labs"]
             if not labs:
-                return "No labs available."
-            lines = ["Available labs:"]
+                return "📋 No labs available."
+            lines = ["📚 Available labs:"]
             for lab in labs:
                 lines.append(f"- {lab.get('title', 'Unknown Lab')}")
             return "\n".join(lines)
