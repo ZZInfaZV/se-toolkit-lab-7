@@ -80,11 +80,11 @@ def handle_labs(command: str) -> str:
         try:
             result = await client.get_labs()
             if "error" in result:
-                return f"❌ Backend error: {result['error']}. Check that the services are running."
+                return f"Backend error: {result['error']}. Check that the services are running."
             labs = result["labs"]
             if not labs:
-                return "📋 No labs available."
-            lines = ["📚 Available labs:"]
+                return "No labs available."
+            lines = ["Available labs:"]
             for lab in labs:
                 lines.append(f"- {lab.get('title', 'Unknown Lab')}")
             return "\n".join(lines)
@@ -115,8 +115,10 @@ def handle_scores(command: str, lab_name: str = "") -> str:
                 return f"❌ Backend error: {result['error']}. Check that the services are running."
             pass_rates = result["pass_rates"]
             if not pass_rates:
-                return f"📊 No pass rates available for {lab_name}."
-            lines = [f"📈 Pass rates for {lab_name}:"]
+                return f"No pass rates available for {lab_name}."
+            # Format lab name for display (lab-04 -> Lab 04)
+            display_name = lab_name.replace("lab-", "Lab ").replace("Lab 0", "Lab 0")
+            lines = [f"Pass rates for {display_name}:"]
             for rate in pass_rates:
                 task_name = rate.get("task_name", rate.get("task", "Unknown"))
                 avg_score = rate.get("avg_score", rate.get("pass_rate", 0))
